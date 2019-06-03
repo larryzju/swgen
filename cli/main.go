@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
+	"path"
 
 	"github.com/larryzju/swgen"
 )
@@ -16,19 +18,31 @@ var (
 
 func main() {
 	flag.Parse()
-	c, err := swgen.NewDirNode(*input, *input)
+
+	// ignore
+	var ignore swgen.Ignore
+	f, err := os.Open(path.Join(*input, ".swignore"))
 	if err != nil {
-		log.Fatal(err)
+		ignore = &swgen.BasicIgnore{}
+	}
+	defer f.Close()
+	ignore = swgen.NewBasicIgnore(f)
+
+	// build
+	c, err := swgen.NewDirNode(*input, *input, ignore)
+	if err != nil {
+		log.Panic(err)
 	}
 
 	dir := c.(*swgen.DirNode)
+
+	// generate navigator
 	nav, err := dir.Navbar(*root)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Println(nav)
-
+	// generate pages
 	err = dir.Generate(*output, nav)
 	if err != nil {
 		log.Fatal(err)

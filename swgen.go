@@ -41,14 +41,13 @@ type Dir interface {
 }
 
 type DirNode struct {
-	rel             string
-	path            string
-	info            os.FileInfo
-	children        []node.Node
-	contentTemplate *template.Template
+	rel      string
+	path     string
+	info     os.FileInfo
+	children []node.Node
 }
 
-func NewDirNode(root string, srcdir string) (e node.Node, err error) {
+func NewDirNode(root string, srcdir string, ignore Ignore) (e node.Node, err error) {
 	info, err := os.Stat(srcdir)
 	if err != nil {
 		return
@@ -70,33 +69,38 @@ func NewDirNode(root string, srcdir string) (e node.Node, err error) {
 		return
 	}
 
-	contentTemplate := template.Must(template.New("content").Parse(contentHtmlTempalteLiteral))
-
 	d := &DirNode{
-		rel:             rel,
-		path:            srcdir,
-		info:            info,
-		contentTemplate: contentTemplate,
+		rel:  rel,
+		path: srcdir,
+		info: info,
 	}
 
 	for _, sub := range infos {
-		fn := getNewNodeFn(sub)
+		var c node.Node
 		pagePath := path.Join(srcdir, sub.Name())
-		p, err := fn(root, pagePath)
+		if sub.IsDir() {
+			c, err = NewDirNode(root, pagePath, ignore)
+		} else {
+			fn := getNewNodeFn(sub)
+			c, err = fn(root, pagePath)
+		}
+
 		if err != nil {
 			return nil, err
 		}
-		d.children = append(d.children, p)
+
+		if ignore.Ignore(c.Rel()) {
+			log.Println("ignore", pagePath)
+			continue
+		}
+
+		d.children = append(d.children, c)
 	}
 
 	return d, nil
 }
 
 func getNewNodeFn(info os.FileInfo) node.NewFn {
-	if info.IsDir() {
-		return NewDirNode
-	}
-
 	switch path.Ext(info.Name()) {
 	case ".org":
 		return node.NewOrgNode
@@ -154,6 +158,9 @@ func (d *DirNode) Navbar(root string) (template.HTML, error) {
 	subLinks := []template.HTML{}
 	for _, c := range d.children {
 		if dir, ok := c.(*DirNode); ok {
+			if len(dir.children) == 0 {
+				continue
+			}
 			subNavbar, err := dir.Navbar(root)
 			if err != nil {
 				return "", err
