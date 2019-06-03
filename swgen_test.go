@@ -5,12 +5,11 @@ import (
 )
 
 func TestGenerate(t *testing.T) {
-	root := "/Users/larry/diary/programming/"
+	root := "/home/i353434/diary/programming/"
 	t.Log("hello")
-	c, err := NewDirPage(root, root)
+	c, err := NewDirNode(root, root)
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log(c)
-	t.Log(c.ContentHTML())
 }

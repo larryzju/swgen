@@ -1,0 +1,21 @@
+section.main-article-area {
+	margin-left: 300px;
+}
+
+nav#content {
+	min-height: 100%;
+	/* background: gray; */
+	display: block;
+	position: fixed;
+	width: 300px;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	overflow-y: scroll;
+	overflow-x: hidden;
+}
+
+nav#content ul {
+	padding-left: 15px;
+	margin-left: 5px
+}
