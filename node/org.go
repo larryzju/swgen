@@ -16,18 +16,16 @@ type OrgNode struct {
 	info os.FileInfo
 }
 
-func NewOrgNode(root string, src string) (node Node, err error) {
-	path, err := filepath.Abs(src)
+func NewOrg(s Source) (node Node, err error) {
+	root := s.Root()
+	path := s.Path()
+
+	info, err := os.Stat(path)
 	if err != nil {
 		return
 	}
 
-	info, err := os.Stat(src)
-	if err != nil {
-		return
-	}
-
-	rel, err := filepath.Rel(root, src)
+	rel, err := filepath.Rel(root, path)
 	if err != nil {
 		return
 	}
@@ -56,18 +54,27 @@ func (p *OrgNode) String() string {
 	return p.Rel()
 }
 
-func (p *OrgNode) Content() (c template.HTML, err error) {
+func (p *OrgNode) Flush(m Metadata, t Target) (err error) {
+	body, err := p.render()
+	if err != nil {
+		return
+	}
+
+	f, err := os.Create(path.Join(t.Root(), p.Rel()))
+	if err != nil {
+		return
+	}
+
+	data := wrapHTMLData(p, m, body)
+	return htmlTemplate.Execute(f, data)
+}
+
+func (p *OrgNode) render() (c template.HTML, err error) {
 	cmd := exec.Command("pandoc", "-f", "org", "-t", "html", "-i", p.path)
 	bytes, err := cmd.Output()
 	if err != nil {
 		return
 	}
 
-	c = template.HTML(bytes)
-	return
-
-}
-
-func (p *OrgNode) Link(root string) string {
-	return path.Join(root, p.Rel())
+	return template.HTML(bytes), nil
 }

@@ -2,7 +2,6 @@ package node
 
 import (
 	"html/template"
-	"io"
 	"time"
 )
 
@@ -10,17 +9,33 @@ type Node interface {
 	Rel() string
 	Title() string
 	LastUpdate() time.Time
+	Flush(Metadata, Target) error
 }
 
-type HTMLNode interface {
-	Node
-	Link(root string) string
-	Content() (template.HTML, error)
+type Source interface {
+	Root() string
+	Path() string
+	Ext() string
 }
 
-type RawNode interface {
-	Node
-	Reader() (io.ReadCloser, error)
+type Target interface {
+	URLRoot() string
+	Root() string
 }
 
-type NewFn func(root string, path string) (Node, error)
+type Metadata interface {
+	Navigator() template.HTML
+	BuildTime() time.Time
+	GitVersion() string
+}
+
+type NewFn func(Source) (Node, error)
+
+func New(s Source) (Node, error) {
+	switch s.Ext() {
+	case ".org":
+		return NewOrg(s)
+	default:
+		return NewRaw(s)
+	}
+}

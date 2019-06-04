@@ -28,23 +28,8 @@ func main() {
 	defer f.Close()
 	ignore = swgen.NewBasicIgnore(f)
 
-	// build
-	c, err := swgen.NewDirNode(*input, *input, ignore)
+	err = swgen.Generate(*input, *output, *root, ignore)
 	if err != nil {
 		log.Panic(err)
-	}
-
-	dir := c.(*swgen.DirNode)
-
-	// generate navigator
-	nav, err := dir.Navbar(*root)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// generate pages
-	err = dir.Generate(*output, nav)
-	if err != nil {
-		log.Fatal(err)
 	}
 }

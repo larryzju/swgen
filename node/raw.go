@@ -3,6 +3,7 @@ package node
 import (
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 )
@@ -13,18 +14,15 @@ type Raw struct {
 	info os.FileInfo
 }
 
-func NewRawNode(root string, src string) (page Node, err error) {
-	path, err := filepath.Abs(src)
+func NewRaw(s Source) (page Node, err error) {
+	root := s.Root()
+	path := s.Path()
+	info, err := os.Stat(path)
 	if err != nil {
 		return
 	}
 
-	info, err := os.Stat(src)
-	if err != nil {
-		return
-	}
-
-	rel, err := filepath.Rel(root, src)
+	rel, err := filepath.Rel(root, path)
 	if err != nil {
 		return
 	}
@@ -52,6 +50,20 @@ func (p *Raw) String() string {
 	return p.Rel()
 }
 
-func (p *Raw) Reader() (io.ReadCloser, error) {
-	return os.Open(p.path)
+func (p *Raw) Flush(m Metadata, t Target) (err error) {
+	dstpath := path.Join(t.Root(), p.Rel())
+	dst, err := os.Create(dstpath)
+	if err != nil {
+		return err
+	}
+	defer dst.Close()
+
+	src, err := os.Open(p.path)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	_, err = io.Copy(dst, src)
+	return
 }
