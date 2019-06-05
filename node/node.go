@@ -35,6 +35,8 @@ func New(s Source) (Node, error) {
 	switch s.Ext() {
 	case ".org":
 		return NewOrg(s)
+	case ".md":
+		return NewMarkdown(s)
 	default:
 		return NewRaw(s)
 	}
