@@ -65,8 +65,9 @@ func (p *OrgNode) Flush(m Metadata, t Target) (err error) {
 		return
 	}
 
-	data := wrapHTMLData(p, m, t, body)
-	return htmlTemplate.Execute(f, data)
+	data := wrapHtmlData(p, m, t, body)
+	tmpl := t.HtmlTemplate()
+	return tmpl.Execute(f, data)
 }
 
 func (p *OrgNode) render() (c template.HTML, err error) {

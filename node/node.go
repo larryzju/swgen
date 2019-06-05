@@ -21,10 +21,11 @@ type Source interface {
 type Target interface {
 	URLRoot() string
 	Root() string
+	HtmlTemplate() *template.Template
 }
 
 type Metadata interface {
-	Navigator() template.HTML
+	NavigatorURL() string
 	BuildTime() time.Time
 	GitVersion() string
 }
@@ -33,6 +34,8 @@ type NewFn func(Source) (Node, error)
 
 func New(s Source) (Node, error) {
 	switch s.Ext() {
+	case ".tmpl":
+		return NewTmpl(s)
 	case ".org":
 		return NewOrg(s)
 	case ".md":

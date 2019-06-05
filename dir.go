@@ -1,12 +1,10 @@
 package swgen
 
 import (
-	"html/template"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/larryzju/swgen/node"
@@ -36,23 +34,9 @@ func (s *Source) Rel() string {
 	return rel
 }
 
-type Target struct {
-	root    string
-	urlRoot string
-}
-
-func (t *Target) Root() string    { return t.root }
-func (t *Target) URLRoot() string { return t.urlRoot }
-
-type Metadata struct {
-	navigator  string
-	buildTime  time.Time
-	gitVersion string
-}
-
-func (m *Metadata) Navigator() template.HTML { return template.HTML(m.navigator) }
-func (m *Metadata) BuildTime() time.Time     { return m.buildTime }
-func (m *Metadata) GitVersion() string       { return m.gitVersion }
+func (m *Metadata) NavigatorURL() string { return m.navigator }
+func (m *Metadata) BuildTime() time.Time { return m.buildTime }
+func (m *Metadata) GitVersion() string   { return m.gitVersion }
 
 func newDir(s node.Source) (node node.Node, err error) {
 	return NewDir(s.(*Source))
@@ -141,40 +125,32 @@ func (d *Dir) Flush(m node.Metadata, t node.Target) (err error) {
 	return nil
 }
 
-func (d *Dir) generateNavigator(t node.Target) (navigator string, err error) {
-	links := []template.HTML{}
+type Navigator struct {
+	Title    string       `json:"title"`
+	Link     string       `json:"link,omitempty"`
+	Children []*Navigator `json:"children,omitempty"`
+}
+
+func (d *Dir) generateNavigator(t node.Target) (nav *Navigator, err error) {
+	nav = &Navigator{Title: d.Title()}
 	for _, n := range d.nodes {
 		switch n.(type) {
 		case *node.Raw:
 			continue
 		case *Dir:
-			link, err := n.(*Dir).generateNavigator(t)
+			nav0, err := n.(*Dir).generateNavigator(t)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 
-			if link == "" {
+			if len(nav0.Children) == 0 {
 				continue
 			}
-			links = append(links, template.HTML("<details><summary>"+n.Title()+"</summary>"+link+"</details>"))
+			nav.Children = append(nav.Children, nav0)
 		default:
-			nt := &struct {
-				node.Node
-				node.Target
-			}{n, t}
-			tmpl := template.Must(template.New("item").Parse(`<a href='{{.URLRoot}}/{{.Rel}}'>{{.Title}}</a>`))
-			sb := &strings.Builder{}
-			tmpl.Execute(sb, nt)
-			links = append(links, template.HTML(sb.String()))
+			nav0 := &Navigator{Title: n.Title(), Link: path.Join(t.URLRoot(), n.Rel())}
+			nav.Children = append(nav.Children, nav0)
 		}
 	}
-
-	if len(links) == 0 {
-		return "", nil
-	}
-
-	sb := &strings.Builder{}
-	listTemplate := template.Must(template.New("list").Parse(`<ul>{{range .}}<li>{{.}}</li>{{end}}</ul>`))
-	listTemplate.Execute(sb, links)
-	return sb.String(), nil
+	return
 }
