@@ -65,7 +65,7 @@ func (p *OrgNode) Flush(m Metadata, t Target) (err error) {
 		return
 	}
 
-	data := wrapHTMLData(p, m, body)
+	data := wrapHTMLData(p, m, t, body)
 	return htmlTemplate.Execute(f, data)
 }
 
