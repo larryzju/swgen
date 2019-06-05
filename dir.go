@@ -156,7 +156,7 @@ func (d *Dir) generateNavigator(t node.Target) (navigator string, err error) {
 			if link == "" {
 				continue
 			}
-			links = append(links, template.HTML("<span>"+n.Title()+"</span>"+link))
+			links = append(links, template.HTML("<details><summary>"+n.Title()+"</summary>"+link+"</details>"))
 		default:
 			nt := &struct {
 				node.Node

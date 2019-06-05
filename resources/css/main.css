@@ -19,3 +19,18 @@ nav#content ul {
 	padding-left: 15px;
 	margin-left: 5px
 }
+
+nav#content li {
+	list-style-type: none;
+}
+
+nav#content li:has(> a) {
+	list-style-type: circle;
+	padding-left: 150px;
+	margin-left: 5px;
+}	
+
+.li-focus {
+	border: 2px solid red;
+}
+
