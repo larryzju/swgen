@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"html/template"
 	"os"
 	"os/exec"
@@ -71,9 +72,11 @@ func (p *OrgNode) Flush(m Metadata, t Target) (err error) {
 }
 
 func (p *OrgNode) render() (c template.HTML, err error) {
-	cmd := exec.Command("pandoc", "-f", "org", "-t", "html", "-i", p.path)
+	cmd := exec.Command("pandoc", "--fail-if-warnings", "-f", "org", "-t", "html", "--mathjax", "-i", path.Base(p.path))
+	cmd.Dir = path.Dir(p.path)
 	bytes, err := cmd.Output()
 	if err != nil {
+		err = fmt.Errorf("run command on %s failed: %s", p.path, string(err.(*exec.ExitError).Stderr))
 		return
 	}
 
