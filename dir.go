@@ -116,6 +116,11 @@ func (d *Dir) Flush(m node.Metadata, t node.Target) (err error) {
 	}
 
 	for _, c := range d.nodes {
+		dstPath := path.Join(t.Root(), c.Rel())
+		dstInfo, err := os.Stat(dstPath)
+		if err == nil && !dstInfo.IsDir() && dstInfo.ModTime().After(d.LastUpdate()) {
+			continue
+		}
 		err = c.Flush(m, t)
 		if err != nil {
 			return err
