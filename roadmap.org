@@ -1,0 +1,11 @@
+* roadmap
+** DONE render with kramdown and pandoc
+** DONE add ignore support
+** DONE add main function
+** DONE add home link
+** DONE add prev/next link
+** DONE render directory content
+** TODO ignore not changed file
+** TODO generate TOC 
+** TODO add configuration
+** TODO generate navigator

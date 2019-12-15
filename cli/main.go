@@ -2,41 +2,44 @@ package main
 
 import (
 	"flag"
+	"html/template"
 	"log"
 	"os"
-	"path"
-	"runtime/debug"
+	"path/filepath"
 
 	"github.com/larryzju/swgen"
 )
 
 var (
-	input    = flag.String("input", "", "input directory")
-	output   = flag.String("output", "", "output directory")
-	root     = flag.String("root", "/", "root directory")
-	template = flag.String("template", "", "html template")
-	verbose  = flag.Bool("verbose", false, "verbose")
+	input   = flag.String("input", ".", "input directory")
+	output  = flag.String("output", "./output", "output directory")
+	root    = flag.String("root", "", "root directory")
+	verbose = flag.Bool("verbose", false, "verbose")
 )
 
 func main() {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Println("stacktrace from panic: ", string(debug.Stack()))
-		}
-	}()
-
 	flag.Parse()
 
-	// ignore
 	var ignore swgen.Ignore
-	f, err := os.Open(path.Join(*input, ".swignore"))
+	f, err := os.Open(filepath.Join(*input, ".swignore"))
 	if err != nil {
 		ignore = &swgen.BasicIgnore{}
 	}
 	defer f.Close()
 	ignore = swgen.NewBasicIgnore(f)
 
-	err = swgen.Generate(*input, *output, *root, *template, ignore)
+	templatePattern := filepath.Join(*input, ".template/*.html")
+	tmpl := template.Must(template.ParseGlob(templatePattern))
+	log.Printf("template=%v", tmpl)
+	sw := swgen.Swgen{
+		URLRoot:  *root,
+		Source:   *input,
+		Target:   *output,
+		Ignore:   ignore,
+		Template: tmpl,
+	}
+
+	err = sw.Run()
 	if err != nil {
 		log.Panic(err)
 	}
