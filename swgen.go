@@ -35,7 +35,7 @@ func (sw *Swgen) PageURL(n *Node) (string, error) {
 		return "", err
 	}
 
-	url := filepath.Join(sw.URLRoot, rel)
+	url := filepath.Join("/", sw.URLRoot, rel)
 	if !n.Info.IsDir() {
 		ext := filepath.Ext(n.Info.Name())
 		if _, ok := RenderFns[ext]; ok {
@@ -62,32 +62,74 @@ func (sw *Swgen) Run() error {
 }
 
 func (sw *Swgen) renderAll(n *Node, m *Metadata, c template.HTML) error {
-	if !n.Info.IsDir() {
-		return sw.render(n, m, c)
-	}
+	dest := sw.MustGetTargetPath(n.Path)
 
-	dest, err := sw.GetTargetPath(n.Path)
-	if err != nil {
-		return err
-	}
+	if n.Info.IsDir() {
+		if err := os.MkdirAll(dest, os.ModePerm); err != nil {
+			return err
+		}
 
-	if err := os.MkdirAll(dest, os.ModePerm); err != nil {
-		return err
-	}
-
-	for _, child := range n.Children {
-		err := sw.renderAll(child, m, c)
+		dest := fmt.Sprintf("%s/index.html", sw.MustGetTargetPath(n.Path))
+		html, err := n.RenderDir(m)
 		if err != nil {
 			return err
 		}
+		if err := sw.render(dest, n, c, html); err != nil {
+			return err
+		}
+
+		for _, child := range n.Children {
+			err := sw.renderAll(child, m, c)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	}
 
-	return sw.renderDir(n, m, c)
+	// regular files
+	suffix := filepath.Ext(dest)
+	if !(strings.EqualFold(suffix, "html") || strings.EqualFold(suffix, "htm")) {
+		dest = fmt.Sprintf("%s.html", dest)
+	}
+
+	// if the target exists and force flag is not enable, then skip the generate
+	destInfo, err := os.Stat(dest)
+	if err == nil && destInfo.ModTime().After(n.Info.ModTime()) && !sw.Force {
+		log.Printf("skip existed file %s", dest)
+		return nil
+	}
+
+	html, err := n.Render(m)
+	if err != nil {
+		return err
+	}
+
+	return sw.render(dest, n, c, html)
+}
+
+func (sw *Swgen) render(dest string, n *Node, c, html template.HTML) error {
+	log.Printf("render %s to %s", n.Path, dest)
+	fd, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer fd.Close()
+
+	doc := &Doc{
+		Swgen: sw,
+		Toc:   c,
+		Page:  html,
+		Node:  n,
+	}
+
+	return sw.Template.Execute(fd, doc)
 }
 
 func (sw *Swgen) copy(src string) error {
-	dest, err := sw.GetTargetPath(src)
-	if err != nil {
+	dest := sw.MustGetTargetPath(src)
+	if err := os.MkdirAll(filepath.Dir(dest), os.ModePerm); err != nil {
 		return err
 	}
 
@@ -107,101 +149,19 @@ func (sw *Swgen) copy(src string) error {
 	return err
 }
 
-var dirTemplate = template.Must(template.New("dir").Parse(`
-<div>
-{{.Path | .Swgen.GetRelPath}}
-<ul>
-{{range .Children}}
-  <li>
-    <a href="{{. | .Swgen.PageURL}}">{{.Info.Name}}</a>
-  </li>
-{{end}}
-</ul>
-</div>
-`))
-
-func (sw *Swgen) renderDir(n *Node, m *Metadata, c template.HTML) error {
-	dest, err := sw.GetTargetPath(n.Path)
+// MustGetRelPath get the relative path
+func (sw *Swgen) MustGetRelPath(path string) string {
+	rel, err := filepath.Rel(sw.Source, path)
 	if err != nil {
-		return err
+		log.Panicf("rel %s %s failed", sw.Source, path)
 	}
-
-	sb := &strings.Builder{}
-	if err := dirTemplate.Execute(sb, n); err != nil {
-		return err
-	}
-
-	fd, err := os.Create(fmt.Sprintf("%s/index.html", dest))
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
-
-	doc := &Doc{
-		Swgen: sw,
-		Toc:   c,
-		Page:  template.HTML(sb.String()),
-		Node:  n,
-	}
-
-	return sw.Template.Execute(fd, doc)
-}
-
-// GetRelPath get the relative path
-func (sw *Swgen) GetRelPath(path string) (string, error) {
-	return filepath.Rel(sw.Source, path)
+	return rel
 }
 
 // GetTargetPath get the target path
-func (sw *Swgen) GetTargetPath(path string) (string, error) {
-	rel, err := sw.GetRelPath(path)
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(sw.Target, rel), nil
-}
-
-// render regular file (org, markdown, html, or any other formats)
-func (sw *Swgen) render(n *Node, m *Metadata, c template.HTML) error {
-	dest, err := sw.GetTargetPath(n.Path)
-	if err != nil {
-		return err
-	}
-
-	// add html suffix
-	suffix := filepath.Ext(dest)
-	if !(strings.EqualFold(suffix, "html") || strings.EqualFold(suffix, "htm")) {
-		dest = fmt.Sprintf("%s.html", dest)
-	}
-
-	// if the target exists and force flag is not enable, then skip the generate
-	destInfo, err := os.Stat(dest)
-	if err == nil && destInfo.ModTime().After(n.Info.ModTime()) && !sw.Force {
-		log.Printf("skip existed file %s", dest)
-		return nil
-	}
-
-	html, err := n.Render(m)
-	if err != nil {
-		return err
-	}
-
-	log.Printf("render %s to %s", n.Path, dest)
-	fd, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer fd.Close()
-
-	doc := &Doc{
-		Swgen: sw,
-		Toc:   c,
-		Page:  html,
-		Node:  n,
-	}
-
-	return sw.Template.Execute(fd, doc)
+func (sw *Swgen) MustGetTargetPath(path string) string {
+	rel := sw.MustGetRelPath(path)
+	return filepath.Join(sw.Target, rel)
 }
 
 // Scan the source directory and return nodes tree
@@ -248,7 +208,7 @@ func (sw *Swgen) scan(path string, info os.FileInfo, home *Node) (*Node, error) 
 
 		for _, child := range children {
 			path := filepath.Join(path, child.Name())
-			if sw.Ignore.Ignore(path) {
+			if sw.Ignore.Ignore(sw.MustGetRelPath(path)) {
 				log.Printf("ignore path %s", path)
 				continue
 			}

@@ -12,6 +12,19 @@ import (
 	"time"
 )
 
+var dirTemplate = template.Must(template.New("dir").Parse(`
+<div>
+  {{.Path | .Swgen.MustGetRelPath}}
+  <ul>
+    {{range .Children}}
+    <li>
+      <a href="{{. | .Swgen.PageURL}}">{{.Info.Name}}</a>
+    </li>
+    {{end}}
+  </ul>
+</div>
+`))
+
 var NotRenderableFile = errors.New("file can not be rendered")
 
 var RenderFns = map[string]RenderFn{
@@ -55,6 +68,7 @@ func (n *Node) string(indent int) string {
 	return sb.String()
 }
 
+// Render page content
 func (n *Node) Render(meta *Metadata) (template.HTML, error) {
 	ext := filepath.Ext(n.Path)
 	render, ok := RenderFns[ext]
@@ -62,6 +76,15 @@ func (n *Node) Render(meta *Metadata) (template.HTML, error) {
 		return template.HTML(""), NotRenderableFile
 	}
 	return render(n, meta)
+}
+
+// RenderDir render the index html file for the directory
+func (n *Node) RenderDir(m *Metadata) (template.HTML, error) {
+	sb := &strings.Builder{}
+	if err := dirTemplate.Execute(sb, n); err != nil {
+		return template.HTML(""), err
+	}
+	return template.HTML(sb.String()), nil
 }
 
 func RenderMarkdown(n *Node, m *Metadata) (template.HTML, error) {

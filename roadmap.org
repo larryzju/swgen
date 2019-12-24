@@ -5,7 +5,7 @@
 ** DONE add home link
 ** DONE add prev/next link
 ** DONE render directory content
-** TODO ignore not changed file
-** TODO generate TOC 
+** DONE ignore not changed file
+** TODO directory template
 ** TODO add configuration
 ** TODO generate navigator
