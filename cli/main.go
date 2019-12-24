@@ -14,6 +14,7 @@ var (
 	input   = flag.String("input", ".", "input directory")
 	output  = flag.String("output", "./output", "output directory")
 	root    = flag.String("root", "", "root directory")
+	force   = flag.Bool("force", false, "ignore timestamp")
 	verbose = flag.Bool("verbose", false, "verbose")
 )
 
@@ -35,6 +36,7 @@ func main() {
 		URLRoot:  *root,
 		Source:   *input,
 		Target:   *output,
+		Force:    *force,
 		Ignore:   ignore,
 		Template: tmpl,
 	}

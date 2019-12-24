@@ -23,6 +23,7 @@ var RenderFns = map[string]RenderFn{
 
 type RenderFn func(*Node, *Metadata) (template.HTML, error)
 
+// Node is a file or directory
 type Node struct {
 	*Swgen
 	Info     os.FileInfo

@@ -10,14 +10,17 @@ import (
 	"strings"
 )
 
+// Swgen is the main structure to scan source directory and render pages to target directory
 type Swgen struct {
 	Source   string
 	Target   string
 	URLRoot  string
 	Ignore   Ignore
+	Force    bool
 	Template *template.Template
 }
 
+// Doc is the virtual page object to render
 type Doc struct {
 	*Swgen
 	Toc  template.HTML
@@ -25,6 +28,7 @@ type Doc struct {
 	Node *Node
 }
 
+// PageURL is used to generate the HTML path
 func (sw *Swgen) PageURL(n *Node) (string, error) {
 	rel, err := filepath.Rel(sw.Source, n.Path)
 	if err != nil {
@@ -41,6 +45,7 @@ func (sw *Swgen) PageURL(n *Node) (string, error) {
 	return url, nil
 }
 
+// Run scans source directory and render pages to output directory
 func (sw *Swgen) Run() error {
 	if err := os.MkdirAll(sw.Target, os.ModePerm); err != nil {
 		return err
@@ -131,7 +136,7 @@ func (sw *Swgen) renderDir(n *Node, m *Metadata, c template.HTML) error {
 		return err
 	}
 	defer fd.Close()
-	
+
 	doc := &Doc{
 		Swgen: sw,
 		Toc:   c,
@@ -142,10 +147,12 @@ func (sw *Swgen) renderDir(n *Node, m *Metadata, c template.HTML) error {
 	return sw.Template.Execute(fd, doc)
 }
 
-func(sw *Swgen) GetRelPath(path string) (string, error) {
+// GetRelPath get the relative path
+func (sw *Swgen) GetRelPath(path string) (string, error) {
 	return filepath.Rel(sw.Source, path)
 }
 
+// GetTargetPath get the target path
 func (sw *Swgen) GetTargetPath(path string) (string, error) {
 	rel, err := sw.GetRelPath(path)
 	if err != nil {
@@ -155,10 +162,24 @@ func (sw *Swgen) GetTargetPath(path string) (string, error) {
 	return filepath.Join(sw.Target, rel), nil
 }
 
+// render regular file (org, markdown, html, or any other formats)
 func (sw *Swgen) render(n *Node, m *Metadata, c template.HTML) error {
 	dest, err := sw.GetTargetPath(n.Path)
 	if err != nil {
 		return err
+	}
+
+	// add html suffix
+	suffix := filepath.Ext(dest)
+	if !(strings.EqualFold(suffix, "html") || strings.EqualFold(suffix, "htm")) {
+		dest = fmt.Sprintf("%s.html", dest)
+	}
+
+	// if the target exists and force flag is not enable, then skip the generate
+	destInfo, err := os.Stat(dest)
+	if err == nil && destInfo.ModTime().After(n.Info.ModTime()) && !sw.Force {
+		log.Printf("skip existed file %s", dest)
+		return nil
 	}
 
 	html, err := n.Render(m)
@@ -166,8 +187,8 @@ func (sw *Swgen) render(n *Node, m *Metadata, c template.HTML) error {
 		return err
 	}
 
-	log.Printf("render %s to %s.html", n.Path, dest)
-	fd, err := os.Create(fmt.Sprintf("%s.html", dest))
+	log.Printf("render %s to %s", n.Path, dest)
+	fd, err := os.Create(dest)
 	if err != nil {
 		return err
 	}
@@ -183,6 +204,7 @@ func (sw *Swgen) render(n *Node, m *Metadata, c template.HTML) error {
 	return sw.Template.Execute(fd, doc)
 }
 
+// Scan the source directory and return nodes tree
 func (sw *Swgen) Scan(root string) (*Node, error) {
 	// the root must be a directory
 	info, err := os.Lstat(root)
