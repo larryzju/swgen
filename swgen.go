@@ -22,27 +22,9 @@ type Swgen struct {
 
 // Doc is the virtual page object to render
 type Doc struct {
-	*Swgen
 	Toc  template.HTML
 	Page template.HTML
-	Node *Node
-}
-
-// PageURL is used to generate the HTML path
-func (sw *Swgen) PageURL(n *Node) (string, error) {
-	rel, err := filepath.Rel(sw.Source, n.Path)
-	if err != nil {
-		return "", err
-	}
-
-	url := filepath.Join("/", sw.URLRoot, rel)
-	if !n.Info.IsDir() {
-		ext := filepath.Ext(n.Info.Name())
-		if _, ok := RenderFns[ext]; ok {
-			url += ".html"
-		}
-	}
-	return url, nil
+	*Node
 }
 
 // Run scans source directory and render pages to output directory
@@ -62,14 +44,14 @@ func (sw *Swgen) Run() error {
 }
 
 func (sw *Swgen) renderAll(n *Node, m *Metadata, c template.HTML) error {
-	dest := sw.MustGetTargetPath(n.Path)
+	dest := sw.MustGetTargetPath(n.path)
 
 	if n.Info.IsDir() {
 		if err := os.MkdirAll(dest, os.ModePerm); err != nil {
 			return err
 		}
 
-		dest := fmt.Sprintf("%s/index.html", sw.MustGetTargetPath(n.Path))
+		dest := fmt.Sprintf("%s/index.html", sw.MustGetTargetPath(n.path))
 		html, err := n.RenderDir(m)
 		if err != nil {
 			return err
@@ -110,7 +92,7 @@ func (sw *Swgen) renderAll(n *Node, m *Metadata, c template.HTML) error {
 }
 
 func (sw *Swgen) render(dest string, n *Node, c, html template.HTML) error {
-	log.Printf("render %s to %s", n.Path, dest)
+	log.Printf("render %s to %s", n.path, dest)
 	fd, err := os.Create(dest)
 	if err != nil {
 		return err
@@ -118,10 +100,9 @@ func (sw *Swgen) render(dest string, n *Node, c, html template.HTML) error {
 	defer fd.Close()
 
 	doc := &Doc{
-		Swgen: sw,
-		Toc:   c,
-		Page:  html,
-		Node:  n,
+		Toc:  c,
+		Page: html,
+		Node: n,
 	}
 
 	return sw.Template.Execute(fd, doc)
@@ -179,7 +160,7 @@ func (sw *Swgen) Scan(root string) (*Node, error) {
 	home := &Node{
 		Swgen:    sw,
 		Info:     info,
-		Path:     root,
+		path:     root,
 		Children: []*Node{},
 	}
 
@@ -190,7 +171,7 @@ func (sw *Swgen) scan(path string, info os.FileInfo, home *Node) (*Node, error) 
 	n := &Node{
 		Swgen:    sw,
 		Info:     info,
-		Path:     path,
+		path:     path,
 		Children: []*Node{},
 		Home:     home,
 	}

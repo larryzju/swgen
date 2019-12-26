@@ -2,8 +2,8 @@
 <html>
   <head>
     <title>{{.Node.Info.Name}}</title>
-    <link rel="stylesheet" href="{{.Swgen.URLRoot}}/resources/css/main.css" />
-    <link rel="stylesheet" href="{{.Swgen.URLRoot}}/resources/highlight/styles/default.css" />
+    <link rel="stylesheet" href="{{.URLRoot}}/resources/css/main.css" />
+    <link rel="stylesheet" href="{{.URLRoot}}/resources/highlight/styles/default.css" />
     <script src="{{.URLRoot}}/resources/js/jquery-3.4.1.min.js"></script>
     <script src="{{.URLRoot}}/resources/js/swgen.js"></script>
     <script src="{{.URLRoot}}/resources/highlight/highlight.pack.js"></script>
@@ -14,15 +14,15 @@
     <nav id='content'>
       <span id="prev">
 	{{if .Node.Prev}}	
-	<a href="{{.Node.Prev | .PageURL}}">Prev: {{.Node.Prev.Info.Name}}</a>
+	<a href="{{.Node.Prev.PageURL}}">Prev: {{.Node.Prev.Info.Name}}</a>
 	{{end}}	
       </span>
 
-      <span id="home"><a href="{{.Node.Home | .PageURL}}">Home</a></span>      
+      <span id="home"><a href="{{.Node.Home.PageURL}}">Home</a></span>      
       
       <span id="next">
 	{{if .Node.Next}}
-	<a href="{{.Node.Next | .PageURL}}">Next: {{.Node.Next.Info.Name}}</a>
+	<a href="{{.Node.Next.PageURL}}">Next: {{.Node.Next.Info.Name}}</a>
 	{{end}}	
       </span>
     </nav>

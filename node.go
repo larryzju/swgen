@@ -14,11 +14,11 @@ import (
 
 var dirTemplate = template.Must(template.New("dir").Parse(`
 <div>
-  {{.Path | .Swgen.MustGetRelPath}}
+  {{.Rel}}
   <ul>
     {{range .Children}}
     <li>
-      <a href="{{. | .Swgen.PageURL}}">{{.Info.Name}}</a>
+      <a href="{{.PageURL}}">{{.Name}}</a>
     </li>
     {{end}}
   </ul>
@@ -40,7 +40,7 @@ type RenderFn func(*Node, *Metadata) (template.HTML, error)
 type Node struct {
 	*Swgen
 	Info     os.FileInfo
-	Path     string
+	path     string
 	Children []*Node
 	Home     *Node
 	Next     *Node
@@ -52,6 +52,38 @@ type Metadata struct {
 	Root      string
 	BuildTime time.Time
 	Version   string
+}
+
+// PageURL is used to generate the HTML path
+func (n *Node) PageURL() (string, error) {
+	rel, err := filepath.Rel(n.Source, n.path)
+	if err != nil {
+		return "", err
+	}
+
+	url := filepath.Join("/", n.URLRoot, rel)
+	if !n.Info.IsDir() {
+		ext := filepath.Ext(n.Info.Name())
+		if _, ok := RenderFns[ext]; ok {
+			url += ".html"
+		}
+	}
+	return url, nil
+}
+
+// Rel get the node's relative path
+func (n *Node) Rel() (string, error) {
+	return filepath.Rel(n.Source, n.path)
+}
+
+// Name get the node's relative name
+func (n *Node) Name() (string, error) {
+	path, err := filepath.Rel(n.Source, n.path)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Base(path), nil
 }
 
 func (n *Node) String() string {
@@ -70,7 +102,7 @@ func (n *Node) string(indent int) string {
 
 // Render page content
 func (n *Node) Render(meta *Metadata) (template.HTML, error) {
-	ext := filepath.Ext(n.Path)
+	ext := filepath.Ext(n.path)
 	render, ok := RenderFns[ext]
 	if !ok {
 		return template.HTML(""), NotRenderableFile
@@ -88,7 +120,7 @@ func (n *Node) RenderDir(m *Metadata) (template.HTML, error) {
 }
 
 func RenderMarkdown(n *Node, m *Metadata) (template.HTML, error) {
-	cmd := exec.Command("kramdown", n.Path)
+	cmd := exec.Command("kramdown", n.path)
 	bytes, err := cmd.Output()
 	if err != nil {
 		return template.HTML(""), err
@@ -97,11 +129,11 @@ func RenderMarkdown(n *Node, m *Metadata) (template.HTML, error) {
 }
 
 func RenderOrg(n *Node, m *Metadata) (template.HTML, error) {
-	cmd := exec.Command("pandoc", "--fail-if-warnings", "-f", "org", "-t", "html", "--mathjax", "-i", filepath.Base(n.Path))
-	cmd.Dir = filepath.Dir(n.Path)
+	cmd := exec.Command("pandoc", "--fail-if-warnings", "-f", "org", "-t", "html", "--mathjax", "-i", filepath.Base(n.path))
+	cmd.Dir = filepath.Dir(n.path)
 	bytes, err := cmd.Output()
 	if err != nil {
-		err = fmt.Errorf("run command on %s failed: %s", n.Path, string(err.(*exec.ExitError).Stderr))
+		err = fmt.Errorf("run command on %s failed: %s", n.path, string(err.(*exec.ExitError).Stderr))
 		return template.HTML(""), nil
 	}
 
@@ -109,7 +141,7 @@ func RenderOrg(n *Node, m *Metadata) (template.HTML, error) {
 }
 
 func RenderHTML(n *Node, m *Metadata) (template.HTML, error) {
-	bytes, err := ioutil.ReadFile(n.Path)
+	bytes, err := ioutil.ReadFile(n.path)
 	if err != nil {
 		return template.HTML(""), nil
 	}
